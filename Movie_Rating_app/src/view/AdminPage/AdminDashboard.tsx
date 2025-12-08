@@ -285,7 +285,7 @@ const AdminDashboard: React.FC = () => {
           Users
         </button>
         <button className={activeTab === 'comments' ? 'active' : ''} onClick={() => setActiveTab('comments')}>
-          Comments
+          Reviews
         </button>
         <button className={activeTab === 'discussions' ? 'active' : ''} onClick={() => setActiveTab('discussions')}>
           Discussions
@@ -317,9 +317,9 @@ const AdminDashboard: React.FC = () => {
           if (!selectedComment) {
             return (
               <div className="admin-content">
-                <div className="admin-error">Comment not found. It may have been deleted or filtered out.</div>
+                <div className="admin-error">Review not found. It may have been deleted or filtered out.</div>
                 <button onClick={() => setSelectedCommentId(null)} className="admin-back-button">
-                  ← Back to Comments
+                  ← Back to Reviews
                 </button>
               </div>
             );
@@ -350,7 +350,7 @@ const AdminDashboard: React.FC = () => {
               <p>{stats.totalUsers}</p>
             </div>
             <div className="stat-card">
-              <h3>Total Comments</h3>
+              <h3>Total Reviews</h3>
               <p>{stats.totalComments}</p>
             </div>
             <div className="stat-card">
@@ -444,7 +444,7 @@ const AdminDashboard: React.FC = () => {
             <div className="admin-filters">
               <input
                 type="text"
-                placeholder="Search comments..."
+                placeholder="Search reviews..."
                 value={filters.search || ''}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
@@ -462,7 +462,7 @@ const AdminDashboard: React.FC = () => {
                 <tr>
                   <th>User</th>
                   <th>Movie ID</th>
-                  <th>Comment</th>
+                  <th>Review</th>
                   <th>Status</th>
                   <th>Created</th>
                   <th>Actions</th>
@@ -476,8 +476,8 @@ const AdminDashboard: React.FC = () => {
                         <button
                           className="admin-expand-button"
                           onClick={() => setSelectedCommentId(comment.id)}
-                          aria-label="View full comment"
-                          title="View full comment"
+                          aria-label="View full review"
+                          title="View full review"
                         >
                           ▶
                         </button>
@@ -770,7 +770,7 @@ const AdminDashboard: React.FC = () => {
               >
                 <option value="">All Types</option>
                 <option value="user">Users</option>
-                <option value="comment">Comments</option>
+                <option value="comment">Reviews</option>
                 <option value="discussion">Discussions</option>
                 <option value="watchlist">Watchlists</option>
               </select>

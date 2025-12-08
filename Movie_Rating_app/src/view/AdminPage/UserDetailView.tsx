@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../api/admin';
-import type { AdminUser, AdminActivity, AdminComment, AdminDiscussion, AdminWatchlist } from '../../api/admin';
+import type { AdminUser, AdminActivity, AdminComment, AdminCommentReply, AdminDiscussion, AdminWatchlist } from '../../api/admin';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Alert from '../../components/Alert';
 import NavBar from '../Component/Navbar';
+import { FaStar } from 'react-icons/fa';
 import './admin.css';
 
 interface UserDetailViewProps {
@@ -84,7 +85,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({ userId, onBack }) => {
     setConfirmDialog({
       isOpen: true,
       title: 'Confirm Delete',
-      message: 'Are you sure you want to delete this comment?',
+      message: 'Are you sure you want to delete this review?',
       type: 'delete',
       onConfirm: async () => {
         setConfirmDialog({ ...confirmDialog, isOpen: false });
@@ -93,7 +94,28 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({ userId, onBack }) => {
           await adminAPI.deleteComment(commentId);
           loadUserDetails();
         } catch (err: any) {
-          setError(err.message || 'Failed to delete comment');
+          setError(err.message || 'Failed to delete review');
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
+
+  const handleDeleteCommentReply = (commentId: string, replyId: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Delete',
+      message: 'Are you sure you want to delete this reply?',
+      type: 'delete',
+      onConfirm: async () => {
+        setConfirmDialog({ ...confirmDialog, isOpen: false });
+        try {
+          setLoading(true);
+          await adminAPI.deleteCommentReply(commentId, replyId);
+          loadUserDetails();
+        } catch (err: any) {
+          setError(err.message || 'Failed to delete reply');
         } finally {
           setLoading(false);
         }
@@ -128,7 +150,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({ userId, onBack }) => {
       await adminAPI.restoreComment(commentId);
       loadUserDetails();
     } catch (err: any) {
-      setError(err.message || 'Failed to restore comment');
+      setError(err.message || 'Failed to restore review');
     } finally {
       setLoading(false);
     }
@@ -330,7 +352,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({ userId, onBack }) => {
               <strong>Total Watchlists:</strong> <span>{stats?.totalWatchlists || 0}</span>
             </div>
             <div className="info-row">
-              <strong>Total Comments:</strong> <span>{stats?.totalComments || 0}</span>
+              <strong>Total Reviews:</strong> <span>{stats?.totalComments || 0}</span>
             </div>
             <div className="info-row">
               <strong>Total Discussions:</strong> <span>{stats?.totalDiscussions || 0}</span>
@@ -424,10 +446,10 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({ userId, onBack }) => {
         </div>
 
         <div className="admin-detail-section">
-          <h3>Comments ({comments.length})</h3>
+          <h3>Reviews ({comments.length})</h3>
           <div className="admin-interactions-list">
             {comments.length === 0 ? (
-              <p>No comments found</p>
+              <p>No reviews found</p>
             ) : (
               <div className="interactions-container">
                 {comments.map((comment) => {
@@ -437,6 +459,23 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({ userId, onBack }) => {
                       <div className="interaction-header" onClick={() => toggleExpand(comment.id, 'comment')}>
                         <div className="interaction-info">
                           <strong>Movie ID: {comment.movieTmdbId}</strong>
+                          {comment.rating && (
+                            <span className="interaction-meta" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              Rating: {[1, 2, 3, 4, 5].map((star) => (
+                                <FaStar
+                                  key={star}
+                                  className={star <= comment.rating! ? 'filled' : 'empty'}
+                                  style={{ color: star <= comment.rating! ? '#ffdd59' : '#ccc', fontSize: '14px' }}
+                                />
+                              ))}
+                              <span style={{ marginLeft: '4px' }}>{comment.rating}/5</span>
+                            </span>
+                          )}
+                          {comment.replies && comment.replies.length > 0 && (
+                            <span className="interaction-meta">
+                              {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+                            </span>
+                          )}
                           <span className="interaction-date">
                             {new Date(comment.createdAt).toLocaleString()}
                           </span>
@@ -451,20 +490,51 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({ userId, onBack }) => {
                           <div className="interaction-text">
                             <p>{comment.text}</p>
                           </div>
+                          {comment.replies && comment.replies.length > 0 && (
+                            <div className="admin-replies-list" style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+                              <h4 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#333' }}>
+                                Replies ({comment.replies.length})
+                              </h4>
+                              {comment.replies.map((reply: AdminCommentReply) => (
+                                <div key={reply.id} className="admin-reply-item">
+                                  <div className="admin-reply-header">
+                                    <div>
+                                      <strong>{reply.author}</strong>
+                                      <span className="admin-reply-timestamp">
+                                        {new Date(reply.timestamp).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleDeleteCommentReply(comment.id, reply.id)}
+                                      className="admin-delete-reply-button"
+                                      title="Delete reply"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                  <div className="admin-reply-content">
+                                    <p style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', margin: 0 }}>
+                                      {reply.text}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <div className="interaction-actions">
                             {comment.isDeleted ? (
                               <button
                                 onClick={() => handleRestoreComment(comment.id)}
                                 className="admin-action-button restore small"
                               >
-                                Restore Comment
+                                Restore Review
                               </button>
                             ) : (
                               <button
                                 onClick={() => handleDeleteComment(comment.id)}
                                 className="admin-action-button delete small"
                               >
-                                Delete Comment
+                                Delete Review
                               </button>
                             )}
                           </div>
