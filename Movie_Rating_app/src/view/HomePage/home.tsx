@@ -4,12 +4,13 @@ import "./home.css"
 import "../Component/MovieDetailCard/MovieDetailCard.css"
 import NavBar from "../Component/Navbar"
 import MinimalNavbar from "../Component/MinimalNavbar"
-import {Link} from 'react-router-dom';
+import {Link, useLocation} from 'react-router-dom';
 import { useLang } from "../../i18n/LanguageContext.jsx"; 
 import MovRow from "../Component/MovieRow.jsx"
 import { tmdb } from '../../api/tmbd';
 import type { Movie, Video } from '../../api/tmbd';
 import EEAAOT from "../../assets/EEAAO.mp4"
+import Alert from "../../components/Alert";
 
 // Get trailer URL from TMDB video key
 function getTrailerUrl(trailer: Video): string | null {
@@ -55,10 +56,33 @@ function isUnreleased(releaseDate: string): boolean {
 
 function Home(){
   const { t } = useLang();
+  const location = useLocation();
   const [trendingMovies, setTrendingMovies] = useState<MovieData[]>([]);
   const [upcomingMovies, setUpcomingMovies] = useState<MovieData[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
+
+  // Check for alert from location state
+  useEffect(() => {
+    if (location.state?.showAlert) {
+      setAlert({
+        isOpen: true,
+        message: location.state.alertMessage || "Access denied. Admin privileges required.",
+        type: location.state.alertType || 'error'
+      });
+      // Clear the state to prevent showing again on re-render
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -212,6 +236,12 @@ function Home(){
       </div>
 
       </main>
+      <Alert
+        isOpen={alert.isOpen}
+        message={alert.message}
+        type={alert.type}
+        onClose={() => setAlert({ ...alert, isOpen: false })}
+      />
     </div>
   );
 }

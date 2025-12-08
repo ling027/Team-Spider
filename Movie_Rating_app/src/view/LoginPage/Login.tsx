@@ -1,14 +1,16 @@
 import "../main.css";
 import "./Login.css";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useLang } from "../../i18n/LanguageContext";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { authAPI } from "../../api/auth";
+import Alert from "../../components/Alert";
 
 const Login: React.FC = () => {
   const { t } = useLang();
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -18,6 +20,28 @@ const Login: React.FC = () => {
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
+
+  // Check for alert from location state
+  useEffect(() => {
+    if (location.state?.showAlert) {
+      setAlert({
+        isOpen: true,
+        message: location.state.alertMessage || "You must be logged in to access this page.",
+        type: location.state.alertType || 'warning'
+      });
+      // Clear the state to prevent showing again on re-render
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -100,6 +124,12 @@ const Login: React.FC = () => {
           </Link>
         </div>
       </main>
+      <Alert
+        isOpen={alert.isOpen}
+        message={alert.message}
+        type={alert.type}
+        onClose={() => setAlert({ ...alert, isOpen: false })}
+      />
     </div>
   );
 };

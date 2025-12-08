@@ -103,7 +103,8 @@ router.post('/register', registerValidation, async (req: Request, res: Response)
           username: user.username,
           email: user.email,
           fullname: user.fullname,
-          isAdmin: user.isAdmin || false
+          isAdmin: user.isAdmin || false,
+          createdAt: user.createdAt
         }
       }
     });
@@ -166,7 +167,8 @@ router.post('/login', loginValidation, async (req: Request, res: Response) => {
           username: user.username,
           email: user.email,
           fullname: user.fullname,
-          isAdmin: user.isAdmin || false
+          isAdmin: user.isAdmin || false,
+          createdAt: user.createdAt
         }
       }
     });
@@ -197,7 +199,8 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
           username: req.user.username,
           email: req.user.email,
           fullname: req.user.fullname,
-          isAdmin: req.user.isAdmin || false
+          isAdmin: req.user.isAdmin || false,
+          createdAt: req.user.createdAt
         }
       }
     });

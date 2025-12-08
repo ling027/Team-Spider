@@ -10,8 +10,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps): React.ReactEl
   const { isLoggedIn } = useAuth();
 
   if (!isLoggedIn) {
-    alert("You must be logged in to access this page.");
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ showAlert: true, alertMessage: "You must be logged in to access this page.", alertType: "warning" }} />;
   }
 
   return <>{children}</>;
@@ -43,13 +42,11 @@ export function AdminProtectedRoute({ children }: ProtectedRouteProps): React.Re
   }
 
   if (!isLoggedIn) {
-    alert("You must be logged in to access this page.");
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ showAlert: true, alertMessage: "You must be logged in to access this page.", alertType: "warning" }} />;
   }
 
   if (!isAdmin()) {
-    alert("Access denied. Admin privileges required.");
-    return <Navigate to="/home" replace />;
+    return <Navigate to="/home" replace state={{ showAlert: true, alertMessage: "Access denied. Admin privileges required.", alertType: "error" }} />;
   }
 
   return <>{children}</>;

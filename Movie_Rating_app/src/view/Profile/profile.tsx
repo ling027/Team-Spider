@@ -25,12 +25,16 @@ interface MonthItem {
 
 const Profile: React.FC = () => {
   const { t } = useLang();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUser } = useAuth();
   const [favorites, setFavorites] = useState<FavoriteMovie[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [dailyActivity, setDailyActivity] = useState<DailyActivityMap>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [editFormData, setEditFormData] = useState({ fullname: '', email: '' });
+  const [editLoading, setEditLoading] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Load bookmarks (keeping localStorage for now)
   useEffect(() => {
@@ -73,6 +77,66 @@ const Profile: React.FC = () => {
     const updated = favorites.filter((m) => m.id !== id);
     localStorage.setItem("bookmarks", JSON.stringify(updated));
     setFavorites(updated);
+  };
+
+  const handleEditClick = () => {
+    if (currentUser) {
+      setEditFormData({
+        fullname: currentUser.fullname || '',
+        email: currentUser.email || ''
+      });
+      setEditError(null);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleEditClose = () => {
+    setIsEditModalOpen(false);
+    setEditFormData({ fullname: '', email: '' });
+    setEditError(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser?.id) return;
+
+    setEditLoading(true);
+    setEditError(null);
+
+    try {
+      const updateData: { fullname?: string; email?: string } = {};
+      if (editFormData.fullname.trim()) {
+        updateData.fullname = editFormData.fullname.trim();
+      }
+      if (editFormData.email.trim()) {
+        updateData.email = editFormData.email.trim();
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        setEditError('Please provide at least one field to update');
+        setEditLoading(false);
+        return;
+      }
+
+      const response = await usersAPI.update(currentUser.id, updateData);
+      
+      // Update the user in context
+      if (response.data.user) {
+        const updatedUser = {
+          ...currentUser,
+          ...response.data.user
+        };
+        updateUser(updatedUser);
+      }
+
+      setIsEditModalOpen(false);
+      setEditFormData({ fullname: '', email: '' });
+    } catch (err: any) {
+      setEditError(err.response?.data?.message || err.message || 'Failed to update profile');
+      console.error('Error updating profile:', err);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const months: MonthItem[] = useMemo(() => {
@@ -131,11 +195,19 @@ const Profile: React.FC = () => {
                 <h2>{currentUser?.username || "User"}</h2>
                 <p>{currentUser?.email || ""}</p>
                 <p className="joined-date">
-                  {t("Joined")}: {currentUser?.createdAt 
-                    ? new Date(currentUser.createdAt).toLocaleDateString('default', { month: 'long', year: 'numeric' })
-                    : "N/A"}
+                  {t("Joined")}: {(() => {
+                    if (!currentUser?.createdAt) return "N/A";
+                    try {
+                      const date = new Date(currentUser.createdAt);
+                      return isNaN(date.getTime()) 
+                        ? "N/A" 
+                        : date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    } catch {
+                      return "N/A";
+                    }
+                  })()}
                 </p>
-                <button className="edit-btn">{t("Edit Profile")}</button>
+                <button className="edit-btn" onClick={handleEditClick}>{t("Edit Profile")}</button>
               </div>
             </div>
 
@@ -231,6 +303,52 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {isEditModalOpen && (
+        <div className="modal-overlay" onClick={handleEditClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{t("Edit Profile")}</h2>
+              <button className="modal-close" onClick={handleEditClose}>&times;</button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="edit-profile-form">
+              {editError && (
+                <div className="edit-error">{editError}</div>
+              )}
+              <div className="form-group">
+                <label htmlFor="fullname">{t("Full Name")}</label>
+                <input
+                  type="text"
+                  id="fullname"
+                  value={editFormData.fullname}
+                  onChange={(e) => setEditFormData({ ...editFormData, fullname: e.target.value })}
+                  placeholder={t("Enter your full name")}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="email">{t("Email")}</label>
+                <input
+                  type="email"
+                  id="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  placeholder={t("Enter your email")}
+                  required
+                />
+              </div>
+              <div className="form-actions">
+                <button type="button" className="cancel-btn" onClick={handleEditClose} disabled={editLoading}>
+                  {t("Cancel")}
+                </button>
+                <button type="submit" className="save-btn" disabled={editLoading}>
+                  {editLoading ? t("Saving...") : t("Save Changes")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -18,6 +18,7 @@ export interface User {
   email: string;
   fullname: string;
   isAdmin: boolean;
+  createdAt?: string;
 }
 
 export interface AuthResponse {
