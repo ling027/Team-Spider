@@ -564,7 +564,7 @@ const AdminDashboard: React.FC = () => {
                     <td>{discussion.replies}</td>
                     <td>{discussion.views}</td>
                     <td>{discussion.isDeleted ? 'Deleted' : 'Active'}</td>
-                    <td>{new Date(discussion.createdAt).toLocaleDateString()}</td>
+                    <td>{new Date(discussion.createdAt).toLocaleString()}</td>
                     <td>
                       <button
                         className="admin-expand-button"

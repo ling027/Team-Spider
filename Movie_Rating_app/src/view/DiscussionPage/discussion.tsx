@@ -551,7 +551,7 @@ function DiscussionPage(): React.ReactElement {
                       </div>
                       <div className="stat">
                         <span className="stat-icon">⏰</span>
-                        <span>{thread.lastActivity}</span>
+                        <span>{new Date(thread.lastActivity).toLocaleString()}</span>
                       </div>
                     </div>
 
