@@ -202,17 +202,18 @@
 }
 
 .activity-year {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 20px;
-  justify-content: space-between;
+  align-items: start;
 }
 
 .month-calendar {
   background: #2a2a2a;
   border-radius: 10px;
   padding: 10px;
-  min-width: 140px;
+  width: 100%;
+  max-width: 160px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
