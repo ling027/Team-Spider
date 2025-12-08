@@ -511,6 +511,31 @@ h1 {
   color: #9ca3af;
 }
 
+.delete-discussion-btn,
+.delete-reply-btn {
+  background: #dc2626;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-discussion-btn:hover,
+.delete-reply-btn:hover {
+  background: #b91c1c;
+}
+
+.delete-reply-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 .empty-icon {
   font-size: 48px;
   margin-bottom: 16px;

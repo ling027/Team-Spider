@@ -6,8 +6,11 @@ import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { usersAPI, type UserStats, type UserReview, type UserDiscussion } from "../../api/users";
+import { commentsAPI } from "../../api/comments";
+import { discussionsAPI } from "../../api/discussions";
 import { tmdb } from "../../api/tmbd";
 import { FaStar } from 'react-icons/fa';
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 interface FavoriteMovie {
   id: number;
@@ -42,6 +45,19 @@ const Profile: React.FC = () => {
   const [editFormData, setEditFormData] = useState({ fullname: '', email: '' });
   const [editLoading, setEditLoading] = useState<boolean>(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'delete' | 'default';
+    onConfirm: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'default',
+    onConfirm: null
+  });
 
   // Load bookmarks (keeping localStorage for now)
   useEffect(() => {
@@ -210,6 +226,98 @@ const Profile: React.FC = () => {
     });
   };
 
+  const handleDeleteReview = async (reviewId: string, movieTmdbId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Review',
+      message: 'Are you sure you want to delete this review? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await commentsAPI.delete(movieTmdbId, reviewId);
+          setReviews(prev => prev.filter(r => r.id !== reviewId));
+        } catch (err: any) {
+          alert(err.message || 'Failed to delete review');
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
+  };
+
+  const handleDeleteReviewReply = async (reviewId: string, replyId: string, movieTmdbId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Reply',
+      message: 'Are you sure you want to delete this reply? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await commentsAPI.deleteReply(movieTmdbId, reviewId, replyId);
+          setReviews(prev => prev.map(review => {
+            if (review.id === reviewId) {
+              return {
+                ...review,
+                replies: review.replies?.filter(r => r.id !== replyId) || []
+              };
+            }
+            return review;
+          }));
+        } catch (err: any) {
+          alert(err.message || 'Failed to delete reply');
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
+  };
+
+  const handleDeleteDiscussion = async (discussionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Discussion',
+      message: 'Are you sure you want to delete this discussion? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await discussionsAPI.delete(discussionId);
+          setDiscussions(prev => prev.filter(d => d.id !== discussionId));
+        } catch (err: any) {
+          alert(err.message || 'Failed to delete discussion');
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
+  };
+
+  const handleDeleteDiscussionReply = async (discussionId: string, replyId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Reply',
+      message: 'Are you sure you want to delete this reply? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await discussionsAPI.deleteReply(discussionId, replyId);
+          setDiscussions(prev => prev.map(discussion => {
+            if (discussion.id === discussionId) {
+              return {
+                ...discussion,
+                replies: discussion.replies?.filter(r => r.id !== replyId) || []
+              };
+            }
+            return discussion;
+          }));
+        } catch (err: any) {
+          alert(err.message || 'Failed to delete reply');
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
+  };
+
   const getMonthGrid = (year: number, monthIndex: number): (Date | null)[][] => {
     const firstDay = new Date(year, monthIndex, 1);
     const lastDay = new Date(year, monthIndex + 1, 0);
@@ -337,9 +445,18 @@ const Profile: React.FC = () => {
                               {new Date(review.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <button className="profile-expand-button">
-                            {isExpanded ? '▼' : '▶'}
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button 
+                              className="profile-delete-button"
+                              onClick={(e) => handleDeleteReview(review.id, review.movieTmdbId, e)}
+                              title="Delete review"
+                            >
+                              🗑️
+                            </button>
+                            <button className="profile-expand-button">
+                              {isExpanded ? '▼' : '▶'}
+                            </button>
+                          </div>
                         </div>
                         {isExpanded && (
                           <div className="profile-item-content">
@@ -355,9 +472,20 @@ const Profile: React.FC = () => {
                                   <div key={reply.id} className="profile-reply-item">
                                     <div className="profile-reply-header">
                                       <strong>{reply.author}</strong>
-                                      <span className="profile-reply-timestamp">
-                                        {new Date(reply.timestamp).toLocaleString()}
-                                      </span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span className="profile-reply-timestamp">
+                                          {new Date(reply.timestamp).toLocaleString()}
+                                        </span>
+                                        {reply.userId === currentUser?.id && (
+                                          <button 
+                                            className="profile-delete-button-small"
+                                            onClick={(e) => handleDeleteReviewReply(review.id, reply.id, review.movieTmdbId, e)}
+                                            title="Delete reply"
+                                          >
+                                            🗑️
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="profile-reply-content">
                                       <p>{reply.text}</p>
@@ -412,9 +540,18 @@ const Profile: React.FC = () => {
                               {new Date(discussion.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <button className="profile-expand-button">
-                            {isExpanded ? '▼' : '▶'}
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button 
+                              className="profile-delete-button"
+                              onClick={(e) => handleDeleteDiscussion(discussion.id, e)}
+                              title="Delete discussion"
+                            >
+                              🗑️
+                            </button>
+                            <button className="profile-expand-button">
+                              {isExpanded ? '▼' : '▶'}
+                            </button>
+                          </div>
                         </div>
                         {isExpanded && (
                           <div className="profile-item-content">
@@ -430,9 +567,20 @@ const Profile: React.FC = () => {
                                   <div key={reply.id} className="profile-reply-item">
                                     <div className="profile-reply-header">
                                       <strong>{reply.author}</strong>
-                                      <span className="profile-reply-timestamp">
-                                        {new Date(reply.timestamp).toLocaleString()}
-                                      </span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span className="profile-reply-timestamp">
+                                          {new Date(reply.timestamp).toLocaleString()}
+                                        </span>
+                                        {reply.userId === currentUser?.id && (
+                                          <button 
+                                            className="profile-delete-button-small"
+                                            onClick={(e) => handleDeleteDiscussionReply(discussion.id, reply.id, e)}
+                                            title="Delete reply"
+                                          >
+                                            🗑️
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                     <div className="profile-reply-content">
                                       <p>{reply.content}</p>
@@ -567,6 +715,16 @@ const Profile: React.FC = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        onCancel={() => setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null })}
+      />
     </>
   );
 };

@@ -4,6 +4,7 @@ import '../main.css';
 import NavBar from '../Component/Navbar';
 import MinimalNavbar from '../Component/MinimalNavbar';
 import Alert from '../../components/Alert';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { tmdb, type Movie as TmdbMovie } from '../../api/tmbd';
 import { discussionsAPI, type DiscussionThread, type DiscussionReply } from '../../api/discussions';
 import { useAuth } from '../../context/AuthContext';
@@ -30,7 +31,7 @@ interface SelectedMovie {
 }
 
 function DiscussionPage(): React.ReactElement {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const [threads, setThreads] = useState<ThreadLocal[]>([]);
   const [showNewThreadForm, setShowNewThreadForm] = useState<boolean>(false);
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
@@ -56,6 +57,19 @@ function DiscussionPage(): React.ReactElement {
     isOpen: false,
     message: '',
     type: 'info'
+  });
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'delete' | 'default';
+    onConfirm: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'default',
+    onConfirm: null
   });
 
   // Fetch threads on mount
@@ -320,6 +334,71 @@ function DiscussionPage(): React.ReactElement {
     }
   };
 
+  const handleDeleteDiscussion = async (threadId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Discussion',
+      message: 'Are you sure you want to delete this discussion? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await discussionsAPI.delete(threadId);
+          setThreads(prev => prev.filter(t => t.id !== threadId));
+          setAlert({
+            isOpen: true,
+            message: 'Discussion deleted successfully',
+            type: 'success'
+          });
+        } catch (err: any) {
+          setAlert({
+            isOpen: true,
+            message: err.message || 'Failed to delete discussion',
+            type: 'error'
+          });
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
+  };
+
+  const handleDeleteReply = async (threadId: string, replyId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Reply',
+      message: 'Are you sure you want to delete this reply? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await discussionsAPI.deleteReply(threadId, replyId);
+          setThreads(prev => prev.map(thread => {
+            if (thread.id === threadId) {
+              return {
+                ...thread,
+                replies: Math.max(0, thread.replies - 1),
+                replyList: thread.replyList?.filter(r => r.id !== replyId) || []
+              };
+            }
+            return thread;
+          }));
+          setAlert({
+            isOpen: true,
+            message: 'Reply deleted successfully',
+            type: 'success'
+          });
+        } catch (err: any) {
+          setAlert({
+            isOpen: true,
+            message: err.message || 'Failed to delete reply',
+            type: 'error'
+          });
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
+  };
+
   return (
     <div className="discussion-body-wrapper">
       <header className="site-header">
@@ -516,9 +595,20 @@ function DiscussionPage(): React.ReactElement {
                     >
                       <div className="thread-title-row">
                         <h3 className="thread-title">{thread.title}</h3>
-                        <span className={`expand-arrow ${expandedThreads.has(thread.id) ? 'expanded' : ''}`}>
-                          ▼
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {thread.author === user?.username && (
+                            <button 
+                              className="delete-discussion-btn"
+                              onClick={(e) => handleDeleteDiscussion(thread.id, e)}
+                              title="Delete discussion"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                          <span className={`expand-arrow ${expandedThreads.has(thread.id) ? 'expanded' : ''}`}>
+                            ▼
+                          </span>
+                        </div>
                       </div>
                       <div className="thread-meta">
                         <span className="thread-movie">{thread.movie}</span>
@@ -561,9 +651,20 @@ function DiscussionPage(): React.ReactElement {
                               <div key={reply.id} className="reply-item">
                                 <div className="reply-header">
                                   <span className="reply-author">{reply.author}</span>
-                                  <span className="reply-timestamp">
-                                    {new Date(reply.timestamp).toLocaleString()}
-                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span className="reply-timestamp">
+                                      {new Date(reply.timestamp).toLocaleString()}
+                                    </span>
+                                    {reply.author === user?.username && (
+                                      <button 
+                                        className="delete-reply-btn"
+                                        onClick={(e) => handleDeleteReply(thread.id, reply.id, e)}
+                                        title="Delete reply"
+                                      >
+                                        🗑️
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="reply-content">{reply.content}</div>
                               </div>
@@ -613,6 +714,16 @@ function DiscussionPage(): React.ReactElement {
         message={alert.message}
         type={alert.type}
         onClose={() => setAlert({ ...alert, isOpen: false })}
+      />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        onCancel={() => setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null })}
       />
     </div>
   );

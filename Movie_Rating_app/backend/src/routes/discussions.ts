@@ -336,4 +336,112 @@ router.put('/:id/views', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// Delete own discussion thread (requires authentication)
+router.delete(
+  '/:id',
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const threadId = req.params.id;
+      const userId = req.userId!;
+
+      const thread = await DiscussionThread.findById(threadId);
+      if (!thread) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Thread not found'
+        });
+        return;
+      }
+
+      // Check if user owns the thread
+      if (thread.userId.toString() !== userId) {
+        res.status(403).json({
+          status: 'error',
+          message: 'You can only delete your own discussions'
+        });
+        return;
+      }
+
+      // Soft delete
+      thread.isDeleted = true;
+      thread.deletedAt = new Date();
+      await thread.save();
+
+      res.json({
+        status: 'success',
+        message: 'Discussion deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete discussion error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to delete discussion'
+      });
+    }
+  }
+);
+
+// Delete own reply to discussion (requires authentication)
+router.delete(
+  '/:id/replies/:replyId',
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const threadId = req.params.id;
+      const replyId = req.params.replyId;
+      const userId = req.userId!;
+
+      const thread = await DiscussionThread.findById(threadId);
+      if (!thread) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Thread not found'
+        });
+        return;
+      }
+
+      // Find the reply
+      const reply = thread.replies.find(
+        (r: any) => r._id?.toString() === replyId
+      );
+
+      if (!reply) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Reply not found'
+        });
+        return;
+      }
+
+      // Check if user owns the reply
+      if (reply.userId.toString() !== userId) {
+        res.status(403).json({
+          status: 'error',
+          message: 'You can only delete your own replies'
+        });
+        return;
+      }
+
+      // Remove the reply
+      thread.replies = thread.replies.filter(
+        (r: any) => r._id?.toString() !== replyId
+      );
+      thread.lastActivity = new Date();
+      await thread.save();
+
+      res.json({
+        status: 'success',
+        message: 'Reply deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete reply error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to delete reply'
+      });
+    }
+  }
+);
+
 export default router;

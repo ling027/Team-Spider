@@ -74,6 +74,16 @@ export const discussionsAPI = {
   incrementViews: async (threadId: string): Promise<{ status: string; data: { views: number } }> => {
     const response = await apiClient.put(`/discussions/${threadId}/views`);
     return response.data;
+  },
+
+  delete: async (threadId: string): Promise<{ status: string; message: string }> => {
+    const response = await apiClient.delete(`/discussions/${threadId}`);
+    return response.data;
+  },
+
+  deleteReply: async (threadId: string, replyId: string): Promise<{ status: string; message: string }> => {
+    const response = await apiClient.delete(`/discussions/${threadId}/replies/${replyId}`);
+    return response.data;
   }
 };
 

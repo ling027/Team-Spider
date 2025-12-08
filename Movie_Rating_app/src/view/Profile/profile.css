@@ -597,3 +597,39 @@
   border-radius: 4px;
   font-size: 0.75rem;
 }
+
+.profile-delete-button {
+  background: #dc2626;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-delete-button:hover {
+  background: #b91c1c;
+}
+
+.profile-delete-button-small {
+  background: #dc2626;
+  border: none;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-delete-button-small:hover {
+  background: #b91c1c;
+}

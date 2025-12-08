@@ -33,12 +33,18 @@ router.get('/:movieId/comments', async (req: Request, res: Response): Promise<vo
       data: {
         comments: comments.map(comment => ({
           id: comment._id,
-          userId: comment.userId,
+          userId: (comment.userId as any)?._id?.toString() || comment.userId?.toString() || comment.userId,
           username: (comment.userId as any)?.username || 'Unknown',
           email: (comment.userId as any)?.email || '',
           text: comment.text,
           rating: comment.rating || null,
-          replies: comment.replies || [],
+          replies: (comment.replies || []).map((reply: any) => ({
+            id: reply._id?.toString() || reply._id,
+            userId: reply.userId?.toString() || reply.userId,
+            author: reply.author,
+            text: reply.text,
+            timestamp: reply.timestamp
+          })),
           createdAt: comment.createdAt
         }))
       }
@@ -115,13 +121,16 @@ router.post(
         console.error('Failed to track activity:', activityError);
       }
 
+      // Extract userId - handle both populated and unpopulated cases
+      const userIdString = (comment.userId as any)?._id?.toString() || comment.userId?.toString() || String(comment.userId);
+
       res.status(201).json({
         status: 'success',
         message: 'Comment added successfully',
         data: {
           comment: {
             id: comment._id,
-            userId: comment.userId,
+            userId: userIdString,
             username: (comment.userId as any)?.username || 'Unknown',
             email: (comment.userId as any)?.email || '',
             text: comment.text,
@@ -230,6 +239,113 @@ router.post(
       res.status(500).json({
         status: 'error',
         message: 'Failed to add reply'
+      });
+    }
+  }
+);
+
+// Delete own comment (requires authentication)
+router.delete(
+  '/:movieId/comments/:commentId',
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const commentId = req.params.commentId;
+      const userId = req.userId!;
+
+      const comment = await MovieComment.findById(commentId);
+      if (!comment) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Comment not found'
+        });
+        return;
+      }
+
+      // Check if user owns the comment
+      if (comment.userId.toString() !== userId) {
+        res.status(403).json({
+          status: 'error',
+          message: 'You can only delete your own comments'
+        });
+        return;
+      }
+
+      // Soft delete
+      comment.isDeleted = true;
+      comment.deletedAt = new Date();
+      await comment.save();
+
+      res.json({
+        status: 'success',
+        message: 'Comment deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete comment error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to delete comment'
+      });
+    }
+  }
+);
+
+// Delete own reply (requires authentication)
+router.delete(
+  '/:movieId/comments/:commentId/replies/:replyId',
+  authMiddleware,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const commentId = req.params.commentId;
+      const replyId = req.params.replyId;
+      const userId = req.userId!;
+
+      const comment = await MovieComment.findById(commentId);
+      if (!comment) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Comment not found'
+        });
+        return;
+      }
+
+      // Find the reply
+      const reply = comment.replies.find(
+        (r: any) => r._id?.toString() === replyId
+      );
+
+      if (!reply) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Reply not found'
+        });
+        return;
+      }
+
+      // Check if user owns the reply
+      if (reply.userId.toString() !== userId) {
+        res.status(403).json({
+          status: 'error',
+          message: 'You can only delete your own replies'
+        });
+        return;
+      }
+
+      // Remove the reply
+      comment.replies = comment.replies.filter(
+        (r: any) => r._id?.toString() !== replyId
+      );
+      await comment.save();
+
+      res.json({
+        status: 'success',
+        message: 'Reply deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete reply error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to delete reply'
       });
     }
   }
