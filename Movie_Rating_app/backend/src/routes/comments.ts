@@ -37,6 +37,8 @@ router.get('/:movieId/comments', async (req: Request, res: Response): Promise<vo
           username: (comment.userId as any)?.username || 'Unknown',
           email: (comment.userId as any)?.email || '',
           text: comment.text,
+          rating: comment.rating || null,
+          replies: comment.replies || [],
           createdAt: comment.createdAt
         }))
       }
@@ -60,7 +62,11 @@ router.post(
       .notEmpty()
       .withMessage('Comment text is required')
       .isLength({ max: 500 })
-      .withMessage('Comment cannot exceed 500 characters')
+      .withMessage('Comment cannot exceed 500 characters'),
+    body('rating')
+      .optional()
+      .isInt({ min: 1, max: 5 })
+      .withMessage('Rating must be between 1 and 5')
   ],
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -76,7 +82,7 @@ router.post(
 
       const movieTmdbId = parseInt(req.params.movieId);
       const userId = req.userId!;
-      const { text } = req.body;
+      const { text, rating } = req.body;
 
       if (isNaN(movieTmdbId)) {
         res.status(400).json({
@@ -89,7 +95,8 @@ router.post(
       const comment = new MovieComment({
         userId: new mongoose.Types.ObjectId(userId),
         movieTmdbId,
-        text: text.trim()
+        text: text.trim(),
+        rating: rating ? parseInt(rating) : undefined
       });
 
       await comment.save();
@@ -118,6 +125,8 @@ router.post(
             username: (comment.userId as any)?.username || 'Unknown',
             email: (comment.userId as any)?.email || '',
             text: comment.text,
+            rating: comment.rating || null,
+            replies: comment.replies || [],
             createdAt: comment.createdAt
           }
         }
@@ -127,6 +136,100 @@ router.post(
       res.status(500).json({
         status: 'error',
         message: 'Failed to add comment'
+      });
+    }
+  }
+);
+
+// Add reply to comment (requires authentication)
+router.post(
+  '/:movieId/comments/:commentId/replies',
+  authMiddleware,
+  [
+    body('text')
+      .trim()
+      .notEmpty()
+      .withMessage('Reply text is required')
+      .isLength({ max: 500 })
+      .withMessage('Reply cannot exceed 500 characters')
+  ],
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({
+          status: 'error',
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+        return;
+      }
+
+      const commentId = req.params.commentId;
+      const userId = req.userId!;
+      const { text } = req.body;
+
+      const comment = await MovieComment.findById(commentId);
+      if (!comment) {
+        res.status(404).json({
+          status: 'error',
+          message: 'Comment not found'
+        });
+        return;
+      }
+
+      // Get user for author name
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({
+          status: 'error',
+          message: 'User not found'
+        });
+        return;
+      }
+
+      const newReply = {
+        userId: new mongoose.Types.ObjectId(userId),
+        author: user.username,
+        text: text.trim(),
+        timestamp: new Date()
+      };
+
+      comment.replies.push(newReply);
+      await comment.save();
+
+      // Get the saved reply (Mongoose adds _id after save)
+      const savedReply = comment.replies[comment.replies.length - 1];
+
+      // Track activity
+      try {
+        await UserActivity.create({
+          userId: new mongoose.Types.ObjectId(userId),
+          activityType: 'comment',
+          movieId: comment.movieTmdbId
+        });
+      } catch (activityError) {
+        console.error('Failed to track activity:', activityError);
+      }
+
+      res.status(201).json({
+        status: 'success',
+        message: 'Reply added successfully',
+        data: {
+          reply: {
+            id: savedReply._id,
+            userId: savedReply.userId,
+            author: savedReply.author,
+            text: savedReply.text,
+            timestamp: savedReply.timestamp
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Add reply error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to add reply'
       });
     }
   }

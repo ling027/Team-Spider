@@ -1,11 +1,21 @@
 import apiClient from './apiClient';
 
+export interface MovieCommentReply {
+  id: string;
+  userId: string;
+  author: string;
+  text: string;
+  timestamp: string;
+}
+
 export interface MovieComment {
   id: string;
   userId: string;
   username: string;
   email: string;
   text: string;
+  rating?: number | null;
+  replies?: MovieCommentReply[];
   createdAt: string;
 }
 
@@ -18,6 +28,11 @@ export interface CommentsResponse {
 
 export interface CreateCommentData {
   text: string;
+  rating?: number;
+}
+
+export interface CreateReplyData {
+  text: string;
 }
 
 export const commentsAPI = {
@@ -28,6 +43,11 @@ export const commentsAPI = {
 
   create: async (movieTmdbId: number, data: CreateCommentData): Promise<{ status: string; data: { comment: MovieComment } }> => {
     const response = await apiClient.post(`/movies/${movieTmdbId}/comments`, data);
+    return response.data;
+  },
+
+  addReply: async (movieTmdbId: number, commentId: string, data: CreateReplyData): Promise<{ status: string; data: { reply: MovieCommentReply } }> => {
+    const response = await apiClient.post(`/movies/${movieTmdbId}/comments/${commentId}/replies`, data);
     return response.data;
   }
 };
