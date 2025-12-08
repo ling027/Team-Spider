@@ -903,3 +903,73 @@
   transform: scale(0.98);
 }
 
+/* Reply styles for admin */
+.admin-replies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.admin-reply-item {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+.admin-reply-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.admin-reply-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.admin-reply-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-reply-header strong {
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.admin-reply-timestamp {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.admin-delete-reply-button {
+  padding: 0.375rem 0.75rem;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.admin-delete-reply-button:hover {
+  background-color: #c82333;
+}
+
+.admin-reply-content {
+  color: #333;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.admin-reply-content p {
+  margin: 0;
+}
+

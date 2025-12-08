@@ -31,6 +31,14 @@ export interface AdminUser {
   createdAt: Date;
 }
 
+export interface AdminCommentReply {
+  id: string;
+  userId: any;
+  author: string;
+  text: string;
+  timestamp: Date;
+}
+
 export interface AdminComment {
   id: string;
   userId: any;
@@ -38,6 +46,8 @@ export interface AdminComment {
   email: string;
   movieTmdbId: number;
   text: string;
+  rating?: number | null;
+  replies?: AdminCommentReply[];
   isDeleted: boolean;
   deletedAt?: Date;
   createdAt: Date;
@@ -231,6 +241,11 @@ export const adminAPI = {
 
   deleteReply: async (discussionId: string, replyId: string): Promise<{ status: string; message: string }> => {
     const response = await apiClient.delete(`/admin/discussions/${discussionId}/replies/${replyId}`);
+    return response.data;
+  },
+
+  deleteCommentReply: async (commentId: string, replyId: string): Promise<{ status: string; message: string }> => {
+    const response = await apiClient.delete(`/admin/comments/${commentId}/replies/${replyId}`);
     return response.data;
   },
 

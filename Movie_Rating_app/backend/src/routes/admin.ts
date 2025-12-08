@@ -224,6 +224,8 @@ router.get('/comments', async (req: Request, res: Response) => {
           email: (comment.userId as any)?.email || '',
           movieTmdbId: comment.movieTmdbId,
           text: comment.text,
+          rating: comment.rating || null,
+          replies: comment.replies || [],
           isDeleted: comment.isDeleted,
           deletedAt: comment.deletedAt,
           createdAt: comment.createdAt
@@ -305,6 +307,50 @@ router.post('/comments/:id/restore', async (req: Request, res: Response): Promis
     res.status(500).json({
       status: 'error',
       message: 'Failed to restore comment'
+    });
+  }
+});
+
+// Delete a specific reply from a comment
+router.delete('/comments/:id/replies/:replyId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const commentId = req.params.id;
+    const replyId = req.params.replyId;
+
+    const comment = await MovieComment.findById(commentId);
+
+    if (!comment) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Comment not found'
+      });
+      return;
+    }
+
+    const initialLength = comment.replies.length;
+    comment.replies = comment.replies.filter(
+      (reply: any) => reply._id?.toString() !== replyId
+    );
+
+    if (comment.replies.length === initialLength) {
+      res.status(404).json({
+        status: 'error',
+        message: 'Reply not found'
+      });
+      return;
+    }
+
+    await comment.save();
+
+    res.json({
+      status: 'success',
+      message: 'Reply deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete reply error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to delete reply'
     });
   }
 });
@@ -653,6 +699,8 @@ router.get('/users/:id/details', async (req: Request, res: Response): Promise<vo
           id: comment._id,
           movieTmdbId: comment.movieTmdbId,
           text: comment.text,
+          rating: comment.rating || null,
+          replies: comment.replies || [],
           isDeleted: comment.isDeleted,
           deletedAt: comment.deletedAt,
           createdAt: comment.createdAt
