@@ -357,10 +357,6 @@ function DiscussionPage(): React.ReactElement {
                   <span className="stat-label">Total Views</span>
                   <span className="stat-value">{threads.reduce((sum, thread) => sum + thread.views, 0)}</span>
                 </div>
-                <div className="stat-item">
-                  <span className="stat-label">Active Users</span>
-                  <span className="stat-value">12</span>
-                </div>
               </div>
             </div>
           </aside>
