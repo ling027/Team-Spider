@@ -219,6 +219,14 @@ const AdminDashboard: React.FC = () => {
     setFilters({ ...filters, page });
   };
 
+  const handleTabChange = (tab: TabType) => {
+    // Close any open detail views when switching tabs
+    setSelectedUserId(null);
+    setSelectedDiscussionId(null);
+    setSelectedCommentId(null);
+    setActiveTab(tab);
+  };
+
   const toggleWatchlistExpand = (watchlistId: string) => {
     setExpandedWatchlists(prev => {
       const newSet = new Set(prev);
@@ -278,25 +286,25 @@ const AdminDashboard: React.FC = () => {
         </div>
 
       <div className="admin-tabs">
-        <button className={activeTab === 'stats' ? 'active' : ''} onClick={() => setActiveTab('stats')}>
+        <button className={activeTab === 'stats' ? 'active' : ''} onClick={() => handleTabChange('stats')}>
           Statistics
         </button>
-        <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>
+        <button className={activeTab === 'users' ? 'active' : ''} onClick={() => handleTabChange('users')}>
           Users
         </button>
-        <button className={activeTab === 'comments' ? 'active' : ''} onClick={() => setActiveTab('comments')}>
+        <button className={activeTab === 'comments' ? 'active' : ''} onClick={() => handleTabChange('comments')}>
           Reviews
         </button>
-        <button className={activeTab === 'discussions' ? 'active' : ''} onClick={() => setActiveTab('discussions')}>
+        <button className={activeTab === 'discussions' ? 'active' : ''} onClick={() => handleTabChange('discussions')}>
           Discussions
         </button>
-        <button className={activeTab === 'watchlists' ? 'active' : ''} onClick={() => setActiveTab('watchlists')}>
+        <button className={activeTab === 'watchlists' ? 'active' : ''} onClick={() => handleTabChange('watchlists')}>
           Watchlists
         </button>
-        <button className={activeTab === 'activity' ? 'active' : ''} onClick={() => setActiveTab('activity')}>
+        <button className={activeTab === 'activity' ? 'active' : ''} onClick={() => handleTabChange('activity')}>
           Activity
         </button>
-        <button className={activeTab === 'trash' ? 'active' : ''} onClick={() => setActiveTab('trash')}>
+        <button className={activeTab === 'trash' ? 'active' : ''} onClick={() => handleTabChange('trash')}>
           Trash Can
         </button>
       </div>
