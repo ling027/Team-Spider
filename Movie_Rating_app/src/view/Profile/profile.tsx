@@ -5,7 +5,9 @@ import { useLang } from "../../i18n/LanguageContext";
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { usersAPI, type UserStats } from "../../api/users";
+import { usersAPI, type UserStats, type UserReview, type UserDiscussion } from "../../api/users";
+import { tmdb } from "../../api/tmbd";
+import { FaStar } from 'react-icons/fa';
 
 interface FavoriteMovie {
   id: number;
@@ -29,6 +31,11 @@ const Profile: React.FC = () => {
   const [favorites, setFavorites] = useState<FavoriteMovie[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [dailyActivity, setDailyActivity] = useState<DailyActivityMap>({});
+  const [reviews, setReviews] = useState<UserReview[]>([]);
+  const [discussions, setDiscussions] = useState<UserDiscussion[]>([]);
+  const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
+  const [expandedDiscussions, setExpandedDiscussions] = useState<Set<string>>(new Set());
+  const [movieTitles, setMovieTitles] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -58,13 +65,41 @@ const Profile: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const [statsResponse, activityResponse] = await Promise.all([
+      const [statsResponse, activityResponse, reviewsResponse, discussionsResponse] = await Promise.all([
         usersAPI.getStats(currentUser.id),
-        usersAPI.getActivity(currentUser.id, 365)
+        usersAPI.getActivity(currentUser.id, 365),
+        usersAPI.getReviews(currentUser.id),
+        usersAPI.getDiscussions(currentUser.id)
       ]);
 
       setUserStats(statsResponse.data.stats);
       setDailyActivity(activityResponse.data.dailyActivity || {});
+      setReviews(reviewsResponse.data.reviews || []);
+      setDiscussions(discussionsResponse.data.discussions || []);
+
+      // Fetch movie titles for reviews
+      const reviewMovieIds = new Set<number>();
+      reviewsResponse.data.reviews?.forEach(review => {
+        if (review.movieTmdbId) reviewMovieIds.add(review.movieTmdbId);
+      });
+
+      // Fetch movie titles from TMDB
+      const titlePromises = Array.from(reviewMovieIds).map(async (movieId) => {
+        try {
+          const movie = await tmdb.movieById(movieId);
+          return { id: movieId, title: movie.title };
+        } catch (err) {
+          console.error(`Failed to fetch movie ${movieId}:`, err);
+          return { id: movieId, title: `Movie ${movieId}` };
+        }
+      });
+
+      const movieData = await Promise.all(titlePromises);
+      const titlesMap: Record<number, string> = {};
+      movieData.forEach(({ id, title }) => {
+        titlesMap[id] = title;
+      });
+      setMovieTitles(titlesMap);
     } catch (err: any) {
       setError(err.message || 'Failed to load profile data');
       console.error('Error fetching user data:', err);
@@ -151,6 +186,30 @@ const Profile: React.FC = () => {
     return list;
   }, []);
 
+  const toggleReviewExpand = (reviewId: string) => {
+    setExpandedReviews(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(reviewId)) {
+        newSet.delete(reviewId);
+      } else {
+        newSet.add(reviewId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleDiscussionExpand = (discussionId: string) => {
+    setExpandedDiscussions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(discussionId)) {
+        newSet.delete(discussionId);
+      } else {
+        newSet.add(discussionId);
+      }
+      return newSet;
+    });
+  };
+
   const getMonthGrid = (year: number, monthIndex: number): (Date | null)[][] => {
     const firstDay = new Date(year, monthIndex, 1);
     const lastDay = new Date(year, monthIndex + 1, 0);
@@ -230,6 +289,165 @@ const Profile: React.FC = () => {
                   ))
                 )}
               </div>
+            </div>
+
+            {/* My Reviews */}
+            <div className="profile-section">
+              <h3>My Reviews ({reviews.length})</h3>
+              {reviews.length === 0 ? (
+                <p style={{textAlign:"center", color:"white", padding: "20px"}}>You haven't written any reviews yet.</p>
+              ) : (
+                <div className="profile-items-list">
+                  {reviews.map((review) => {
+                    const isExpanded = expandedReviews.has(review.id);
+                    return (
+                      <div key={review.id} className="profile-item-card">
+                        <div 
+                          className="profile-item-header clickable"
+                          onClick={() => toggleReviewExpand(review.id)}
+                        >
+                          <div className="profile-item-info">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                              <Link 
+                                to={`/movie/${review.movieTmdbId}`}
+                                style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 'bold' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {movieTitles[review.movieTmdbId] || `Movie ${review.movieTmdbId}`}
+                              </Link>
+                              {review.rating && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <FaStar
+                                      key={star}
+                                      className={star <= review.rating! ? 'filled' : 'empty'}
+                                      style={{ color: star <= review.rating! ? '#ffdd59' : '#ccc', fontSize: '14px' }}
+                                    />
+                                  ))}
+                                  <span style={{ marginLeft: '4px', fontSize: '14px' }}>{review.rating}/5</span>
+                                </div>
+                              )}
+                            </div>
+                            {review.replies && review.replies.length > 0 && (
+                              <span className="profile-item-meta">
+                                {review.replies.length} {review.replies.length === 1 ? 'reply' : 'replies'}
+                              </span>
+                            )}
+                            <span className="profile-item-date">
+                              {new Date(review.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <button className="profile-expand-button">
+                            {isExpanded ? '▼' : '▶'}
+                          </button>
+                        </div>
+                        {isExpanded && (
+                          <div className="profile-item-content">
+                            <div className="profile-item-text">
+                              <p>{review.text}</p>
+                            </div>
+                            {review.replies && review.replies.length > 0 && (
+                              <div className="profile-replies-list">
+                                <h4 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fff' }}>
+                                  Replies ({review.replies.length})
+                                </h4>
+                                {review.replies.map((reply) => (
+                                  <div key={reply.id} className="profile-reply-item">
+                                    <div className="profile-reply-header">
+                                      <strong>{reply.author}</strong>
+                                      <span className="profile-reply-timestamp">
+                                        {new Date(reply.timestamp).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <div className="profile-reply-content">
+                                      <p>{reply.text}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* My Discussions */}
+            <div className="profile-section">
+              <h3>My Discussions ({discussions.length})</h3>
+              {discussions.length === 0 ? (
+                <p style={{textAlign:"center", color:"white", padding: "20px"}}>You haven't started any discussions yet.</p>
+              ) : (
+                <div className="profile-items-list">
+                  {discussions.map((discussion) => {
+                    const isExpanded = expandedDiscussions.has(discussion.id);
+                    return (
+                      <div key={discussion.id} className="profile-item-card">
+                        <div 
+                          className="profile-item-header clickable"
+                          onClick={() => toggleDiscussionExpand(discussion.id)}
+                        >
+                          <div className="profile-item-info">
+                            <strong>{discussion.title}</strong>
+                            <span className="profile-item-meta">
+                              Movie: <Link 
+                                to={`/movie/${discussion.movieTmdbId}`}
+                                style={{ color: '#4f46e5', textDecoration: 'none' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {discussion.movieTitle}
+                              </Link> | Replies: {discussion.replies?.length || 0} | Views: {discussion.views}
+                            </span>
+                            {discussion.tags && discussion.tags.length > 0 && (
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                {discussion.tags.map((tag, index) => (
+                                  <span key={index} className="profile-tag">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                            <span className="profile-item-date">
+                              {new Date(discussion.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <button className="profile-expand-button">
+                            {isExpanded ? '▼' : '▶'}
+                          </button>
+                        </div>
+                        {isExpanded && (
+                          <div className="profile-item-content">
+                            <div className="profile-item-text">
+                              <p>{discussion.content}</p>
+                            </div>
+                            {discussion.replies && discussion.replies.length > 0 && (
+                              <div className="profile-replies-list">
+                                <h4 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#fff' }}>
+                                  Replies ({discussion.replies.length})
+                                </h4>
+                                {discussion.replies.map((reply) => (
+                                  <div key={reply.id} className="profile-reply-item">
+                                    <div className="profile-reply-header">
+                                      <strong>{reply.author}</strong>
+                                      <span className="profile-reply-timestamp">
+                                        {new Date(reply.timestamp).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <div className="profile-reply-content">
+                                      <p>{reply.content}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Contribution Activity */}
