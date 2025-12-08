@@ -47,6 +47,54 @@ export interface UserActivityResponse {
   };
 }
 
+export interface UserReview {
+  id: string;
+  movieTmdbId: number;
+  text: string;
+  rating?: number | null;
+  replies?: Array<{
+    id: string;
+    userId: string;
+    author: string;
+    text: string;
+    timestamp: string;
+  }>;
+  createdAt: string;
+}
+
+export interface UserDiscussion {
+  id: string;
+  title: string;
+  movieTitle: string;
+  movieTmdbId: number;
+  content: string;
+  tags: string[];
+  replies?: Array<{
+    id: string;
+    userId: string;
+    author: string;
+    content: string;
+    timestamp: string;
+  }>;
+  views: number;
+  lastActivity: string;
+  createdAt: string;
+}
+
+export interface UserReviewsResponse {
+  status: string;
+  data: {
+    reviews: UserReview[];
+  };
+}
+
+export interface UserDiscussionsResponse {
+  status: string;
+  data: {
+    discussions: UserDiscussion[];
+  };
+}
+
 export interface UpdateUserData {
   fullname?: string;
   email?: string;
@@ -73,6 +121,16 @@ export const usersAPI = {
     if (limit) params.append('limit', limit.toString());
     if (skip) params.append('skip', skip.toString());
     const response = await apiClient.get(`/users/${id}/activity?${params.toString()}`);
+    return response.data;
+  },
+
+  getReviews: async (id: string): Promise<UserReviewsResponse> => {
+    const response = await apiClient.get(`/users/${id}/reviews`);
+    return response.data;
+  },
+
+  getDiscussions: async (id: string): Promise<UserDiscussionsResponse> => {
+    const response = await apiClient.get(`/users/${id}/discussions`);
     return response.data;
   }
 };

@@ -416,3 +416,69 @@
   border-color: #4f46e5;
   color: #fff;
 }
+
+.delete-review-btn,
+.delete-reply-btn {
+  background: #dc2626;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-review-btn:hover,
+.delete-reply-btn:hover {
+  background: #b91c1c;
+}
+
+.delete-reply-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.btn-delete-review {
+  padding: 8px 16px;
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-delete-review:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.btn-delete-review-inline {
+  padding: 6px 12px;
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.btn-delete-review-inline:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}

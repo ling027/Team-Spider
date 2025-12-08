@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { movies, upcomingMovies } from "./movies";
 import MovieDetailCard from "../Component/MovieDetailCard/MovieDetail";
 import Alert from "../../components/Alert";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import "./MovieDetailPage.css";
 import { useLang } from "../../i18n/LanguageContext.jsx";
 import { tmdb } from "../../api/tmbd";
@@ -125,6 +126,19 @@ function MDP({ source }: { source: any[] }) {
     message: '',
     type: 'info'
   });
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'delete' | 'default';
+    onConfirm: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'default',
+    onConfirm: null
+  });
  
   // Fetch comments when movie ID changes
   useEffect(() => {
@@ -137,7 +151,17 @@ function MDP({ source }: { source: any[] }) {
     try {
       setCommentError(null);
       const response = await commentsAPI.getByMovie(numId);
-      setComments(response.data.comments);
+      // Normalize comment and reply IDs/userIds to ensure they're strings
+      const normalizedComments = response.data.comments.map(comment => ({
+        ...comment,
+        userId: comment.userId?.toString ? comment.userId.toString() : (comment.userId?._id?.toString() || comment.userId || String(comment.userId)),
+        replies: (comment.replies || []).map((reply: any) => ({
+          ...reply,
+          id: reply.id || reply._id || String(reply._id),
+          userId: reply.userId?.toString ? reply.userId.toString() : (reply.userId?._id?.toString() || reply.userId || String(reply.userId))
+        }))
+      }));
+      setComments(normalizedComments);
     } catch (err: any) {
       setCommentError(err.message || 'Failed to load comments');
       console.error('Error fetching comments:', err);
@@ -178,7 +202,13 @@ function MDP({ source }: { source: any[] }) {
         rating: rating
       });
       
-      setComments([response.data.comment, ...comments]);
+      // Normalize the new comment's userId to ensure it's a string and matches current user
+      const newComment = {
+        ...response.data.comment,
+        userId: String(user?.id || response.data.comment.userId || '')
+      };
+      
+      setComments([newComment, ...comments]);
       setCommentInput("");
       setRating(0);
       setAlert({
@@ -275,6 +305,70 @@ function MDP({ source }: { source: any[] }) {
         type: 'error'
       });
     }
+  };
+
+  const handleDeleteReview = async (commentId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Review',
+      message: 'Are you sure you want to delete this review? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await commentsAPI.delete(numId, commentId);
+          setComments(prev => prev.filter(c => c.id !== commentId));
+          setAlert({
+            isOpen: true,
+            message: 'Review deleted successfully',
+            type: 'success'
+          });
+        } catch (err: any) {
+          setAlert({
+            isOpen: true,
+            message: err.message || 'Failed to delete review',
+            type: 'error'
+          });
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
+  };
+
+  const handleDeleteReply = async (commentId: string, replyId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Reply',
+      message: 'Are you sure you want to delete this reply? This action cannot be undone.',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          await commentsAPI.deleteReply(numId, commentId, replyId);
+          setComments(prev => prev.map(comment => {
+            if (comment.id === commentId) {
+              return {
+                ...comment,
+                replies: comment.replies?.filter(r => r.id !== replyId) || []
+              };
+            }
+            return comment;
+          }));
+          setAlert({
+            isOpen: true,
+            message: 'Reply deleted successfully',
+            type: 'success'
+          });
+        } catch (err: any) {
+          setAlert({
+            isOpen: true,
+            message: err.message || 'Failed to delete reply',
+            type: 'error'
+          });
+        }
+        setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null });
+      }
+    });
   };
 
 
@@ -416,9 +510,11 @@ function MDP({ source }: { source: any[] }) {
                         <h3 className="review-author"><FaUserLarge /> {c.username || "Guest"}</h3>
                         <span className="review-email">{c.email || ""}</span>
                       </div>
-                      <span className={`expand-arrow ${expandedComments.has(c.id) ? 'expanded' : ''}`}>
-                        ▼
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className={`expand-arrow ${expandedComments.has(c.id) ? 'expanded' : ''}`}>
+                          ▼
+                        </span>
+                      </div>
                     </div>
                     {c.rating && (
                       <div className="review-rating-display">
@@ -444,6 +540,18 @@ function MDP({ source }: { source: any[] }) {
                     <span className="stat">
                       💬 {c.replies?.length || 0} {c.replies?.length === 1 ? 'reply' : 'replies'}
                     </span>
+                    {String(c.userId) === String(user?.id) && (
+                      <button 
+                        className="btn-delete-review-inline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteReview(c.id, e);
+                        }}
+                        title="Delete review"
+                      >
+                        🗑️ Delete
+                      </button>
+                    )}
                   </div>
 
                   {expandedComments.has(c.id) && (
@@ -456,9 +564,20 @@ function MDP({ source }: { source: any[] }) {
                             <div key={reply.id} className="reply-item">
                               <div className="reply-header">
                                 <span className="reply-author">{reply.author}</span>
-                                <span className="reply-timestamp">
-                                  {new Date(reply.timestamp).toLocaleString()}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span className="reply-timestamp">
+                                    {new Date(reply.timestamp).toLocaleString()}
+                                  </span>
+                                  {String(reply.userId) === String(user?.id) && (
+                                    <button 
+                                      className="delete-reply-btn"
+                                      onClick={(e) => handleDeleteReply(c.id, reply.id, e)}
+                                      title="Delete reply"
+                                    >
+                                      🗑️
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <div className="reply-content">{reply.text}</div>
                             </div>
@@ -505,6 +624,16 @@ function MDP({ source }: { source: any[] }) {
         message={alert.message}
         type={alert.type}
         onClose={() => setAlert({ ...alert, isOpen: false })}
+      />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        onCancel={() => setConfirmDialog({ isOpen: false, title: '', message: '', type: 'default', onConfirm: null })}
       />
     </div>
   );

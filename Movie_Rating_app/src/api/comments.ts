@@ -49,6 +49,16 @@ export const commentsAPI = {
   addReply: async (movieTmdbId: number, commentId: string, data: CreateReplyData): Promise<{ status: string; data: { reply: MovieCommentReply } }> => {
     const response = await apiClient.post(`/movies/${movieTmdbId}/comments/${commentId}/replies`, data);
     return response.data;
+  },
+
+  delete: async (movieTmdbId: number, commentId: string): Promise<{ status: string; message: string }> => {
+    const response = await apiClient.delete(`/movies/${movieTmdbId}/comments/${commentId}`);
+    return response.data;
+  },
+
+  deleteReply: async (movieTmdbId: number, commentId: string, replyId: string): Promise<{ status: string; message: string }> => {
+    const response = await apiClient.delete(`/movies/${movieTmdbId}/comments/${commentId}/replies/${replyId}`);
+    return response.data;
   }
 };
 

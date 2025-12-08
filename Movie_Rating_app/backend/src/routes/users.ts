@@ -189,6 +189,100 @@ router.get('/:id/stats', async (req: AuthRequest, res: Response): Promise<void> 
   }
 });
 
+// Get user reviews (comments)
+router.get('/:id/reviews', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.id;
+
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+      return;
+    }
+
+    // Get user's reviews (comments)
+    const comments = await MovieComment.find({ 
+      userId,
+      isDeleted: { $ne: true }
+    })
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    res.json({
+      status: 'success',
+      data: {
+        reviews: comments.map(comment => ({
+          id: comment._id,
+          movieTmdbId: comment.movieTmdbId,
+          text: comment.text,
+          rating: comment.rating || null,
+          replies: comment.replies || [],
+          createdAt: comment.createdAt
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get user reviews error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get user reviews'
+    });
+  }
+});
+
+// Get user discussions
+router.get('/:id/discussions', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.id;
+
+    // Verify user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+      return;
+    }
+
+    // Get user's discussions
+    const discussions = await DiscussionThread.find({ 
+      userId,
+      isDeleted: { $ne: true }
+    })
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    res.json({
+      status: 'success',
+      data: {
+        discussions: discussions.map(discussion => ({
+          id: discussion._id,
+          title: discussion.title,
+          movieTitle: discussion.movieTitle,
+          movieTmdbId: discussion.movieTmdbId,
+          content: discussion.content,
+          tags: discussion.tags,
+          replies: discussion.replies || [],
+          views: discussion.views,
+          lastActivity: discussion.lastActivity,
+          createdAt: discussion.createdAt
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get user discussions error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get user discussions'
+    });
+  }
+});
+
 // Get user activity history
 router.get('/:id/activity', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
